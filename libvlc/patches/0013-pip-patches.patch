@@ -1,0 +1,321 @@
+From a0f8da8224b9407e2e2fd5eda1eba6709e0c257e Mon Sep 17 00:00:00 2001
+From: YOMBI Ernest Evrard
+ <121341980+Flamingo12345678@users.noreply.github.com>
+Date: Sat, 25 Jul 2026 18:52:30 +0200
+Subject: [PATCH] pip patches
+
+---
+ modules/video_output/apple/VLCDrawable.h      |  28 ++++
+ .../apple/VLCPictureInPictureController.m     | 134 +++++++++++++++++-
+ .../apple/VLCSampleBufferDisplay.m            |  69 +++++++++
+ 3 files changed, 229 insertions(+), 2 deletions(-)
+
+diff --git a/modules/video_output/apple/VLCDrawable.h b/modules/video_output/apple/VLCDrawable.h
+index 0b0b6eefd7..e2649062aa 100644
+--- a/modules/video_output/apple/VLCDrawable.h
++++ b/modules/video_output/apple/VLCDrawable.h
+@@ -65,6 +65,20 @@
+ - (BOOL)isMediaPlaying;
+ @end
+ 
++typedef NS_ENUM(NSInteger, VLCPictureInPictureStartResult) {
++    VLCPictureInPictureStartResultAccepted,
++    VLCPictureInPictureStartResultNotPossible,
++    VLCPictureInPictureStartResultAlreadyActive,
++    VLCPictureInPictureStartResultControllerUnavailable
++};
++
++typedef NS_ENUM(NSInteger, VLCPictureInPictureLifecycleEvent) {
++    VLCPictureInPictureLifecycleEventWillStart,
++    VLCPictureInPictureLifecycleEventDidStart,
++    VLCPictureInPictureLifecycleEventWillStop,
++    VLCPictureInPictureLifecycleEventDidStop
++};
++
+ /**
+  * Protocol used by the client to control picture in picture activation and
+  * state update
+@@ -75,6 +89,20 @@
+ /// in picture is started or stopped
+ @property (nonatomic) void(^stateChangeEventHandler)(BOOL isStarted);
+ 
++@property (nonatomic, copy, nullable) void (^possibilityChangeEventHandler)(BOOL isPossible);
++
++@property (nonatomic, copy, nullable) void (^failureEventHandler)(NSError * _Nonnull error);
++
++@property (nonatomic, copy, nullable) void (^lifecycleEventHandler)(VLCPictureInPictureLifecycleEvent event);
++
++@property (nonatomic, readonly, getter=isPictureInPicturePossible) BOOL pictureInPicturePossible;
++
++@property (nonatomic, readonly, getter=isPictureInPictureActive) BOOL pictureInPictureActive;
++
++@property (nonatomic, readonly, getter=isPictureInPictureSuspended) BOOL pictureInPictureSuspended;
++
++@property (nonatomic, assign) BOOL canStartPictureInPictureAutomaticallyFromInline;
++
+ /// Call to present the display in picture in picture mode
+ - (void)startPictureInPicture;
+ 
+diff --git a/modules/video_output/apple/VLCPictureInPictureController.m b/modules/video_output/apple/VLCPictureInPictureController.m
+index ff3b7f9985..faf4f7afb2 100644
+--- a/modules/video_output/apple/VLCPictureInPictureController.m
++++ b/modules/video_output/apple/VLCPictureInPictureController.m
+@@ -47,7 +47,15 @@ API_AVAILABLE(ios(15.0), tvos(15.0), macosx(12.0))
+ @property (nonatomic, readonly) NSObject *avPipController;
+ @property (nonatomic, readonly) pip_controller_t *pipcontroller;
+ @property (nonatomic, readonly, weak) id<VLCPictureInPictureDrawable> drawable;
+-@property (nonatomic) void(^stateChangeEventHandler)(BOOL isStarted);
++@property (nonatomic, copy, nullable) void(^stateChangeEventHandler)(BOOL isStarted);
++@property (nonatomic, copy, nullable) void (^possibilityChangeEventHandler)(BOOL isPossible);
++@property (nonatomic, copy, nullable) void (^failureEventHandler)(NSError * _Nonnull error);
++@property (nonatomic, copy, nullable) void (^lifecycleEventHandler)(VLCPictureInPictureLifecycleEvent event);
++
++@property (nonatomic, readonly, getter=isPictureInPicturePossible) BOOL pictureInPicturePossible;
++@property (nonatomic, readonly, getter=isPictureInPictureActive) BOOL pictureInPictureActive;
++@property (nonatomic, readonly, getter=isPictureInPictureSuspended) BOOL pictureInPictureSuspended;
++@property (nonatomic, assign) BOOL canStartPictureInPictureAutomaticallyFromInline;
+ 
+ - (instancetype)initWithPipController:(pip_controller_t *)pipcontroller;
+ - (void)invalidatePlaybackState;
+@@ -131,7 +139,15 @@ API_AVAILABLE(ios(15.0), tvos(15.0), macosx(12.0))
+                        context:(void *)context {
+     if (object==_avPipController) {
+         if ([keyPath isEqualToString:@"isPictureInPicturePossible"]) {
+-            msg_Dbg(_pipcontroller, "isPictureInPicturePossible:%d", [change[NSKeyValueChangeNewKey] boolValue]);
++            BOOL isPossible = [change[NSKeyValueChangeNewKey] boolValue];
++            msg_Dbg(_pipcontroller, "isPictureInPicturePossible:%d", isPossible);
++            if (self.possibilityChangeEventHandler) {
++                dispatch_async(dispatch_get_main_queue(), ^{
++                    if (self.possibilityChangeEventHandler) {
++                        self.possibilityChangeEventHandler(isPossible);
++                    }
++                });
++            }
+         }
+     } else {
+         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+@@ -205,20 +221,134 @@ API_AVAILABLE(ios(15.0), tvos(15.0), macosx(12.0))
+      * called each time PiP is activated
+      */
+     [self invalidatePlaybackState];
++    if (self.lifecycleEventHandler) {
++        dispatch_async(dispatch_get_main_queue(), ^{
++            if (self.lifecycleEventHandler) {
++                self.lifecycleEventHandler(VLCPictureInPictureLifecycleEventWillStart);
++            }
++        });
++    }
+ }
+ 
+ - (void)pictureInPictureControllerDidStartPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+     if (_stateChangeEventHandler)
+         _stateChangeEventHandler(YES);
++    if (self.lifecycleEventHandler) {
++        dispatch_async(dispatch_get_main_queue(), ^{
++            if (self.lifecycleEventHandler) {
++                self.lifecycleEventHandler(VLCPictureInPictureLifecycleEventDidStart);
++            }
++        });
++    }
++}
++
++- (void)pictureInPictureControllerWillStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
++    if (self.lifecycleEventHandler) {
++        dispatch_async(dispatch_get_main_queue(), ^{
++            if (self.lifecycleEventHandler) {
++                self.lifecycleEventHandler(VLCPictureInPictureLifecycleEventWillStop);
++            }
++        });
++    }
+ }
+ 
+ - (void)pictureInPictureControllerDidStopPictureInPicture:(AVPictureInPictureController *)pictureInPictureController {
+     if(_stateChangeEventHandler)
+         _stateChangeEventHandler(NO);
++    if (self.lifecycleEventHandler) {
++        dispatch_async(dispatch_get_main_queue(), ^{
++            if (self.lifecycleEventHandler) {
++                self.lifecycleEventHandler(VLCPictureInPictureLifecycleEventDidStop);
++            }
++        });
++    }
++}
++
++- (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController
++failedToStartPictureInPictureWithError:(NSError *)error {
++    msg_Err(
++        _pipcontroller,
++        "Picture in Picture failed to start: domain=%s code=%ld",
++        error.domain.UTF8String,
++        (long)error.code
++    );
++
++    if (_failureEventHandler) {
++        dispatch_async(dispatch_get_main_queue(), ^{
++            if (self.failureEventHandler) {
++                self.failureEventHandler(error);
++            }
++        });
++    }
+ }
+ 
+ #pragma mark - VLCDisplayPictureInPictureControlling
+ 
++- (BOOL)isPictureInPicturePossible
++{
++    AVPictureInPictureController *controller =
++        (AVPictureInPictureController *)_avPipController;
++
++    return controller != nil &&
++           controller.isPictureInPicturePossible;
++}
++
++- (BOOL)isPictureInPictureActive
++{
++    AVPictureInPictureController *controller =
++        (AVPictureInPictureController *)_avPipController;
++
++    return controller != nil &&
++           controller.isPictureInPictureActive;
++}
++
++- (BOOL)isPictureInPictureSuspended
++{
++    AVPictureInPictureController *controller =
++        (AVPictureInPictureController *)_avPipController;
++
++    return controller != nil &&
++           controller.isPictureInPictureSuspended;
++}
++
++- (void)setCanStartPictureInPictureAutomaticallyFromInline:(BOOL)enabled
++{
++    AVPictureInPictureController *controller =
++        (AVPictureInPictureController *)_avPipController;
++    if (controller != nil && [controller respondsToSelector:@selector(setCanStartPictureInPictureAutomaticallyFromInline:)]) {
++        controller.canStartPictureInPictureAutomaticallyFromInline = enabled;
++    }
++}
++
++- (BOOL)canStartPictureInPictureAutomaticallyFromInline
++{
++    AVPictureInPictureController *controller =
++        (AVPictureInPictureController *)_avPipController;
++    if (controller != nil && [controller respondsToSelector:@selector(canStartPictureInPictureAutomaticallyFromInline)]) {
++        return controller.canStartPictureInPictureAutomaticallyFromInline;
++    }
++    return NO;
++}
++
++- (VLCPictureInPictureStartResult)requestStartPictureInPicture
++{
++    AVPictureInPictureController *controller =
++        (AVPictureInPictureController *)self.avPipController;
++
++    if (!controller)
++        return VLCPictureInPictureStartResultControllerUnavailable;
++
++    if (controller.isPictureInPictureActive)
++        return VLCPictureInPictureStartResultAlreadyActive;
++
++    if (!controller.isPictureInPicturePossible)
++        return VLCPictureInPictureStartResultNotPossible;
++
++    [controller startPictureInPicture];
++
++    return VLCPictureInPictureStartResultAccepted;
++}
++
+ - (void)startPictureInPicture {
+     AVPictureInPictureController *avPipController =
+         (AVPictureInPictureController *)_avPipController;
+diff --git a/modules/video_output/apple/VLCSampleBufferDisplay.m b/modules/video_output/apple/VLCSampleBufferDisplay.m
+index f13a4f4f8a..b94c230319 100644
+--- a/modules/video_output/apple/VLCSampleBufferDisplay.m
++++ b/modules/video_output/apple/VLCSampleBufferDisplay.m
+@@ -704,6 +704,62 @@ shouldInheritContentsScale:(CGFloat)newScale
+     if ( !_pipcontroller)
+         return;
+ 
++    BOOL displayViewPresent = _displayView != nil;
++    BOOL displayViewWindowPresent = _displayView.window != nil;
++    BOOL displayViewHidden = _displayView.isHidden;
++    CGFloat displayViewAlpha = _displayView.alpha;
++    CGRect displayViewFrame = _displayView.frame;
++    CGRect displayViewBounds = _displayView.bounds;
++    
++    AVSampleBufferDisplayLayer *layer = _displayView.displayLayer;
++    BOOL displayLayerPresent = layer != nil;
++    BOOL displayLayerReadyForDisplay = layer.isReadyForMoreMediaData; // close enough to ready for display for AVLayer, or checking isReadyForMoreMediaData
++    // wait, AVSampleBufferDisplayLayer has `status` property in iOS
++    NSString *displayLayerStatusStr = @"unknown";
++    if (@available(iOS 8.0, tvOS 10.2, macOS 10.10, *)) {
++        if (layer.status == AVQueuedSampleBufferRenderingStatusRendering) {
++            displayLayerStatusStr = @"rendering";
++        } else if (layer.status == AVQueuedSampleBufferRenderingStatusFailed) {
++            displayLayerStatusStr = @"failed";
++        }
++    }
++    
++    NSString *displayLayerErrorDomain = @"none";
++    NSInteger displayLayerErrorCode = 0;
++    if (@available(iOS 8.0, tvOS 10.2, macOS 10.10, *)) {
++        if (layer.error) {
++            displayLayerErrorDomain = layer.error.domain;
++            displayLayerErrorCode = layer.error.code;
++        }
++    }
++    BOOL superlayerPresent = layer.superlayer != nil;
++
++    msg_Dbg(_vd, "SampleBuffer PiP source diagnostic\n"
++                 "displayViewPresent=%s\n"
++                 "displayViewWindowPresent=%s\n"
++                 "displayViewHidden=%s\n"
++                 "displayViewAlpha=%f\n"
++                 "displayViewFrame={{%f, %f}, {%f, %f}}\n"
++                 "displayViewBounds={{%f, %f}, {%f, %f}}\n"
++                 "displayLayerPresent=%s\n"
++                 "displayLayerReadyForDisplay=%s\n"
++                 "displayLayerStatus=%s\n"
++                 "displayLayerErrorDomain=%s\n"
++                 "displayLayerErrorCode=%ld\n"
++                 "superlayerPresent=%s",
++            displayViewPresent ? "true" : "false",
++            displayViewWindowPresent ? "true" : "false",
++            displayViewHidden ? "true" : "false",
++            displayViewAlpha,
++            displayViewFrame.origin.x, displayViewFrame.origin.y, displayViewFrame.size.width, displayViewFrame.size.height,
++            displayViewBounds.origin.x, displayViewBounds.origin.y, displayViewBounds.size.width, displayViewBounds.size.height,
++            displayLayerPresent ? "true" : "false",
++            layer.readyForMoreMediaData ? "true" : "false",
++            displayLayerStatusStr.UTF8String,
++            displayLayerErrorDomain.UTF8String,
++            (long)displayLayerErrorCode,
++            superlayerPresent ? "true" : "false");
++
+     if ( _pipcontroller->ops->set_display_layer ) {
+         _pipcontroller->ops->set_display_layer(
+             _pipcontroller,
+@@ -735,6 +791,19 @@ shouldInheritContentsScale:(CGFloat)newScale
+         [displayView setFrame:[window bounds]];
+         [spuView setFrame:[window bounds]];
+ 
++        BOOL windowAttached = window.window != nil;
++        BOOL frameNonZero = (window.bounds.size.width > 0 && window.bounds.size.height > 0);
++        msg_Dbg(sys.vd, "VLCSampleBufferDisplay hierarchy\n"
++                        "drawableClass=%s\n"
++                        "displayViewClass=%s\n"
++                        "displayViewAdded=true\n"
++                        "windowAttached=%s\n"
++                        "frameNonZero=%s",
++                NSStringFromClass([window class]).UTF8String,
++                NSStringFromClass([displayView class]).UTF8String,
++                windowAttached ? "true" : "false",
++                frameNonZero ? "true" : "false");
++
+         sys->place = *sys.vd->place;
+ 
+         sys.displayView = displayView;
+-- 
+2.52.0
+

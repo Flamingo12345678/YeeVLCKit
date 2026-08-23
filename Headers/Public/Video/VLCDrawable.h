@@ -65,6 +65,20 @@
 - (BOOL)isMediaPlaying;
 @end
 
+typedef NS_ENUM(NSInteger, VLCPictureInPictureStartResult) {
+    VLCPictureInPictureStartResultAccepted,
+    VLCPictureInPictureStartResultNotPossible,
+    VLCPictureInPictureStartResultAlreadyActive,
+    VLCPictureInPictureStartResultControllerUnavailable
+};
+
+typedef NS_ENUM(NSInteger, VLCPictureInPictureLifecycleEvent) {
+    VLCPictureInPictureLifecycleEventWillStart,
+    VLCPictureInPictureLifecycleEventDidStart,
+    VLCPictureInPictureLifecycleEventWillStop,
+    VLCPictureInPictureLifecycleEventDidStop
+};
+
 /**
  * Protocol used by the client to control picture in picture activation and
  * state update
@@ -73,10 +87,26 @@
 
 /// Property to set the event handler block that will notify when the picture
 /// in picture is started or stopped
-@property (nonatomic) void(^stateChangeEventHandler)(BOOL isStarted);
+@property (nonatomic, copy, nullable) void(^stateChangeEventHandler)(BOOL isStarted);
+
+@property (nonatomic, copy, nullable) void (^possibilityChangeEventHandler)(BOOL isPossible);
+
+@property (nonatomic, copy, nullable) void (^failureEventHandler)(NSError * _Nonnull error);
+
+@property (nonatomic, copy, nullable) void (^lifecycleEventHandler)(VLCPictureInPictureLifecycleEvent event);
+
+@property (nonatomic, readonly, getter=isPictureInPicturePossible) BOOL pictureInPicturePossible;
+
+@property (nonatomic, readonly, getter=isPictureInPictureActive) BOOL pictureInPictureActive;
+
+@property (nonatomic, readonly, getter=isPictureInPictureSuspended) BOOL pictureInPictureSuspended;
+
+@property (nonatomic, assign) BOOL canStartPictureInPictureAutomaticallyFromInline;
 
 /// Call to present the display in picture in picture mode
 - (void)startPictureInPicture;
+
+- (VLCPictureInPictureStartResult)requestStartPictureInPicture;
 
 /// Call to stop picture in picture
 - (void)stopPictureInPicture;
@@ -84,6 +114,9 @@
 /// Must be called each time media info is updated or playback state has changed
 - (void)invalidatePlaybackState;
 @end
+
+FOUNDATION_EXPORT
+NSString *VLCKitYeeTVForkVersion(void);
 
 /**
  * Protocol that can be used by the client to conform an object to expected
@@ -116,4 +149,9 @@
 /// - Returns Must return the block where picture in picture activation
 /// controller is passed
 - (void (^)(id<VLCPictureInPictureWindowControlling>)) pictureInPictureReady;
+
+/// Controls whether PiP can start automatically when video enters inline mode
+/// - Returns YES to allow automatic PiP activation, NO to disable it
+/// The default implementation will return YES if not implemented
+- (BOOL)canStartPictureInPictureAutomaticallyFromInline;
 @end

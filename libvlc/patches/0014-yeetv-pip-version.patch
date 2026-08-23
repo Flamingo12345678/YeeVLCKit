@@ -1,0 +1,62 @@
+From 03c58a60db98b35887a9038f2652d1c67a36794b Mon Sep 17 00:00:00 2001
+From: YOMBI Ernest Evrard
+ <121341980+Flamingo12345678@users.noreply.github.com>
+Date: Sun, 26 Jul 2026 13:29:58 +0200
+Subject: [PATCH] YeeTV PiP Fork Changes
+
+---
+ modules/video_output/apple/VLCDrawable.h                   | 7 ++++++-
+ modules/video_output/apple/VLCPictureInPictureController.m | 5 +++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/modules/video_output/apple/VLCDrawable.h b/modules/video_output/apple/VLCDrawable.h
+index e2649062aa..94cd8f7747 100644
+--- a/modules/video_output/apple/VLCDrawable.h
++++ b/modules/video_output/apple/VLCDrawable.h
+@@ -87,7 +87,7 @@ typedef NS_ENUM(NSInteger, VLCPictureInPictureLifecycleEvent) {
+ 
+ /// Property to set the event handler block that will notify when the picture
+ /// in picture is started or stopped
+-@property (nonatomic) void(^stateChangeEventHandler)(BOOL isStarted);
++@property (nonatomic, copy, nullable) void(^stateChangeEventHandler)(BOOL isStarted);
+ 
+ @property (nonatomic, copy, nullable) void (^possibilityChangeEventHandler)(BOOL isPossible);
+ 
+@@ -106,6 +106,8 @@ typedef NS_ENUM(NSInteger, VLCPictureInPictureLifecycleEvent) {
+ /// Call to present the display in picture in picture mode
+ - (void)startPictureInPicture;
+ 
++- (VLCPictureInPictureStartResult)requestStartPictureInPicture;
++
+ /// Call to stop picture in picture
+ - (void)stopPictureInPicture;
+ 
+@@ -113,6 +115,9 @@ typedef NS_ENUM(NSInteger, VLCPictureInPictureLifecycleEvent) {
+ - (void)invalidatePlaybackState;
+ @end
+ 
++FOUNDATION_EXPORT
++NSString *VLCKitYeeTVForkVersion(void);
++
+ /**
+  * Protocol that can be used by the client to conform an object to expected
+  * selectors for a video output display.
+diff --git a/modules/video_output/apple/VLCPictureInPictureController.m b/modules/video_output/apple/VLCPictureInPictureController.m
+index faf4f7afb2..3c7a01ae65 100644
+--- a/modules/video_output/apple/VLCPictureInPictureController.m
++++ b/modules/video_output/apple/VLCPictureInPictureController.m
+@@ -64,6 +64,11 @@ API_AVAILABLE(ios(15.0), tvos(15.0), macosx(12.0))
+ 
+ @implementation VLCPictureInPictureController
+ 
++NSString *VLCKitYeeTVForkVersion(void)
++{
++    return @"4.0.0a18-yeetv-pip-1";
++}
++
+ - (instancetype)initWithPipController:(pip_controller_t *)pipcontroller {
+     self = [super init];
+     if (!self)
+-- 
+2.52.0
+

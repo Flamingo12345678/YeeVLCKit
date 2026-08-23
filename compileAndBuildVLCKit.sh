@@ -214,7 +214,7 @@ buildLibVLC() {
     BUILDDIR="${VLCROOT}/build-${PLATFORM}-${ACTUAL_ARCH}"
 
     mkdir -p ${BUILDDIR}
-    spushd ${BUILDDIR}
+    spushd "${BUILDDIR}"
 
     ../extras/package/apple/build.sh --arch=$ARCH --sdk=${PLATFORM}${SDK_VERSION} ${DEBUGFLAG} ${VERBOSEFLAG} ${BITCODEFLAG} ${MAKEFLAGS}
 
@@ -342,7 +342,7 @@ build_simulator_static_lib() {
     rm -f $PROJECT_DIR/Headers/Internal/vlc-plugins-$OSSTYLE-simulator.h
     touch $PROJECT_DIR/Headers/Internal/vlc-plugins-$OSSTYLE-simulator.h
 
-    spushd ${VLCROOT}
+    spushd "${VLCROOT}"
     rm -rf install-$OSSTYLE-simulator
     mkdir install-$OSSTYLE-simulator
     spopd # vlc
@@ -359,7 +359,7 @@ build_simulator_static_lib() {
     check_lipo "${OSSTYLE}" x86_64
 
     if [ ! -z "${VLCSTATICLIBS}" ]; then
-        spushd ${VLCROOT}
+        spushd "${VLCROOT}"
         lipo $VLCSTATICLIBS -create -output install-$OSSTYLE-simulator/libvlc-simulator-static.a
         spopd # VLCROOT
     fi
@@ -373,7 +373,7 @@ build_device_static_lib() {
     # remove old module list
     rm -f $PROJECT_DIR/Headers/Internal/vlc-plugins-$OSSTYLE-device*
 
-    spushd ${VLCROOT}
+    spushd "${VLCROOT}"
     rm -rf install-$OSSTYLE-device
     mkdir install-$OSSTYLE-device
     spopd # vlc
@@ -395,7 +395,7 @@ build_device_static_lib() {
     check_lipo "${OSSTYLE}" arm64
 
     if [ ! -z "${VLCSTATICLIBS}" ]; then
-        spushd ${VLCROOT}
+        spushd "${VLCROOT}"
         lipo $VLCSTATICLIBS -create -output install-$OSSTYLE-device/libvlc-device-static.a
         spopd # VLCROOT
     fi
@@ -526,7 +526,7 @@ if [ "$VLCROOT" = "" ]; then
             cd vlc
             git checkout -B localBranch ${TESTEDHASH}
             git branch --set-upstream-to=origin/master localBranch
-            git am ${ROOT_DIR}/libvlc/patches/*.patch
+            git am "${ROOT_DIR}/libvlc/patches/"*.patch
             if [ $? -ne 0 ]; then
                 git am --abort
                 info "Applying the patches failed, aborting git-am"
@@ -537,7 +537,7 @@ if [ "$VLCROOT" = "" ]; then
             cd vlc
             git fetch --all
             git reset --hard ${TESTEDHASH}
-            git am ${ROOT_DIR}/libvlc/patches/*.patch
+            git am "${ROOT_DIR}/libvlc/patches/"*.patch
             cd ..
         fi
     fi
@@ -567,7 +567,7 @@ if [ "$SKIPLIBVLCCOMPILATION" != "yes" ]; then
     fetch_python3_path
     export PATH="${PYTHON3_PATH}:${VLCROOT}/extras/tools/build/bin:${VLCROOT}/contrib/${TARGET}/bin:$VLC_PATH:/usr/bin:/bin:/usr/sbin:/sbin"
 
-    spushd ${VLCROOT}/extras/tools
+    spushd "${VLCROOT}/extras/tools"
     ./bootstrap
     make
     spopd #${VLCROOT}/extras/tools
@@ -621,7 +621,7 @@ if [ "$TVOS" = "yes" ]; then
         frameworks="$frameworks -framework VLCKit-${platform}.xcarchive/Products/Library/Frameworks/VLCKit.framework -debug-symbols $dsymfolder"
         if [ -d ${bcsymbolmapfolder} ];then
             info "Bitcode support found"
-            spushd $bcsymbolmapfolder
+            spushd "$bcsymbolmapfolder"
             for i in `ls *.bcsymbolmap`
             do
                 frameworks+=" -debug-symbols $bcsymbolmapfolder/$i"
@@ -658,7 +658,7 @@ if [ "$IOS" = "yes" ]; then
         frameworks="$frameworks -framework VLCKit-${platform}.xcarchive/Products/Library/Frameworks/VLCKit.framework -debug-symbols $dsymfolder"
         if [ -d ${bcsymbolmapfolder} ];then
             info "Bitcode support found"
-            spushd $bcsymbolmapfolder
+            spushd "$bcsymbolmapfolder"
             for i in `ls *.bcsymbolmap`
             do
                 frameworks+=" -debug-symbols $bcsymbolmapfolder/$i"
