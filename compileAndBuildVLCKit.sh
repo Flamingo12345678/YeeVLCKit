@@ -53,6 +53,7 @@ OPTIONS
    -a       Build framework for specific arch (all|x86_64|armv7|aarch64)
    -e       External VLC source path
    -7       Include optional ARMv7 slice (iOS only)
+   -p       Specify profile (player-only|full, default: player-only)
 EOF
 }
 

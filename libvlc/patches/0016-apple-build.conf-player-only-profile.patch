@@ -1,0 +1,47 @@
+From b1c2d3e4f5a60718293a4b5c6d7e8f9012345679 Mon Sep 17 00:00:00 2001
+From: YOMBI Ernest Evrard <121341980+Flamingo12345678@users.noreply.github.com>
+Date: Mon, 24 Aug 2026 16:10:00 +0200
+Subject: [PATCH 16/16] apple/build.conf: add player-only profile support
+
+Supports YEEVLCKIT_PROFILE="player-only" (default) to disable stream-output,
+VLM, and unused encoding/muxing subsystems while retaining 100% of video
+and audio decoders for direct play.
+---
+ extras/package/apple/build.conf | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/extras/package/apple/build.conf b/extras/package/apple/build.conf
+index 86af8564ad..97bf9564ae 100644
+--- a/extras/package/apple/build.conf
++++ b/extras/package/apple/build.conf
+@@ -14,6 +14,14 @@
+ export VLC_DEPLOYMENT_TARGET_MACOSX="10.11"
+ # iOS deployment target
+ export VLC_DEPLOYMENT_TARGET_IOS="9.0"
++
++# YeeVLCKit build profile (player-only or full)
++if [ -z "${YEEVLCKIT_PROFILE}" ]; then
++    export YEEVLCKIT_PROFILE="player-only"
++fi
++
++echo "[YeeVLCKit] Configured build profile: ${YEEVLCKIT_PROFILE}"
++
+ #
+ # General options
+ #
+@@ -165,6 +173,14 @@ export VLC_CONFIG_OPTIONS_BASE=(
+     --disable-mad
+ )
+ 
++if [ "${YEEVLCKIT_PROFILE}" = "player-only" ]; then
++    VLC_CONFIG_OPTIONS_BASE+=(
++        --disable-sout
++        --disable-vlm
++        --disable-chromecast
++    )
++fi
++
+ # Additional configure options for macOS
+ export VLC_CONFIG_OPTIONS_MACOSX=()
+ 
+-- 
