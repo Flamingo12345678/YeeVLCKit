@@ -491,12 +491,12 @@ do
              INCLUDE_ARMV7=yes
              ;;
          p)
-             case "" in
+             case "$OPTARG" in
                  full|player-only)
-                     export YEEVLCKIT_PROFILE=""
+                     export YEEVLCKIT_PROFILE="$OPTARG"
                      ;;
                  *)
-                     echo "Invalid profile: . Must be 'full' or 'player-only'" >&2
+                     echo "Invalid profile: $OPTARG. Must be 'full' or 'player-only'" >&2
                      exit 1
                      ;;
              esac
@@ -518,6 +518,11 @@ if [ "$1" != "" ]; then
     usage
     exit 1
 fi
+
+if [ -z "${YEEVLCKIT_PROFILE}" ]; then
+    export YEEVLCKIT_PROFILE="player-only"
+fi
+echo "[YeeVLCKit] Configured build profile: ${YEEVLCKIT_PROFILE}"
 
 # Get root dir
 spushd .
