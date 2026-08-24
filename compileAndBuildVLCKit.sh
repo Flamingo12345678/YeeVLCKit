@@ -402,7 +402,7 @@ build_device_static_lib() {
     fi
 }
 
-while getopts "hvsfbrxiwntl7k:a:e:" OPTION
+while getopts "hvsfbrxiwntl7k:a:e:p:" OPTION
 do
      case $OPTION in
          h)
@@ -489,6 +489,17 @@ do
              ;;
          7)
              INCLUDE_ARMV7=yes
+             ;;
+         p)
+             case "" in
+                 full|player-only)
+                     export YEEVLCKIT_PROFILE=""
+                     ;;
+                 *)
+                     echo "Invalid profile: . Must be 'full' or 'player-only'" >&2
+                     exit 1
+                     ;;
+             esac
              ;;
          ?)
              usage

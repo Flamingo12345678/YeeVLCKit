@@ -1,14 +1,14 @@
 From b1c2d3e4f5a60718293a4b5c6d7e8f9012345679 Mon Sep 17 00:00:00 2001
 From: YOMBI Ernest Evrard <121341980+Flamingo12345678@users.noreply.github.com>
-Date: Mon, 24 Aug 2026 16:10:00 +0200
+Date: Mon, 24 Aug 2026 16:15:00 +0200
 Subject: [PATCH 16/16] apple/build.conf: add player-only profile support
 
-Supports YEEVLCKIT_PROFILE="player-only" (default) to disable stream-output,
-VLM, and unused encoding/muxing subsystems while retaining 100% of video
-and audio decoders for direct play.
+Supports YEEVLCKIT_PROFILE="player-only" (default) to pass --disable-sout to
+contrib bootstrap (disabling BUILD_ENCODERS in FFmpeg) and configure libVLC
+with --disable-sout --disable-vlm while retaining 100% of audio and video decoders.
 ---
- extras/package/apple/build.conf | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ extras/package/apple/build.conf | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
 diff --git a/extras/package/apple/build.conf b/extras/package/apple/build.conf
 index 86af8564ad..97bf9564ae 100644
@@ -29,7 +29,19 @@ index 86af8564ad..97bf9564ae 100644
  #
  # General options
  #
-@@ -165,6 +173,14 @@ export VLC_CONFIG_OPTIONS_BASE=(
+@@ -80,6 +88,12 @@ export VLC_CONTRIB_OPTIONS_BASE=(
+     --disable-decklink
+ )
+ 
++if [ "${YEEVLCKIT_PROFILE}" = "player-only" ]; then
++    VLC_CONTRIB_OPTIONS_BASE+=(
++        --disable-sout
++    )
++fi
++
+ # Additional contrib bootstrap options for macOS
+ export VLC_CONTRIB_OPTIONS_MACOSX=(
+@@ -165,6 +179,14 @@ export VLC_CONFIG_OPTIONS_BASE=(
      --disable-mad
  )
  
