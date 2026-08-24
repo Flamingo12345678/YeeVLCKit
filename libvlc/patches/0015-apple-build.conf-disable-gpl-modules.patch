@@ -1,0 +1,43 @@
+From a1b2c3d4e5f60718293a4b5c6d7e8f9012345678 Mon Sep 17 00:00:00 2001
+From: YOMBI Ernest Evrard <121341980+Flamingo12345678@users.noreply.github.com>
+Date: Mon, 24 Aug 2026 11:27:00 +0200
+Subject: [PATCH 15/15] apple/build.conf: disable GPL modules for LGPL build
+
+Exclude syslog, rotate, motion, sap, and stream_out_rtp from the final
+Apple static framework library to ensure strict LGPL compliance.
+---
+ extras/package/apple/build.conf | 5 +++++
+ modules/control/Makefile.am     | 6 +++---
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/extras/package/apple/build.conf b/extras/package/apple/build.conf
+index 116529fa7b..86af8564ad 100644
+--- a/extras/package/apple/build.conf
++++ b/extras/package/apple/build.conf
+@@ -249,6 +249,11 @@ export VLC_MODULE_REMOVAL_LIST_BASE=(
+     fingerprinter
+     access_output_udp
+     access_output_livehttp
+     ytdl
++    syslog
++    rotate
++    motion
++    sap
++    stream_out_rtp
+ )
+ 
+ # Additional modules to remove for macOS
+diff --git a/modules/control/Makefile.am b/modules/control/Makefile.am
+index e06f529fa7..86af8564ae 100644
+--- a/modules/control/Makefile.am
++++ b/modules/control/Makefile.am
+@@ -29,6 +29,6 @@ control_LTLIBRARIES += liblirc_plugin.la
+ endif
+ 
+-#libvlc_motion_la_SOURCES = control/motionlib.c control/motionlib.h
+-#libvlc_motion_la_LDFLAGS = -static
+-#noinst_LTLIBRARIES += libvlc_motion.la
++# libvlc_motion_la_SOURCES = control/motionlib.c control/motionlib.h
++# libvlc_motion_la_LDFLAGS = -static
++# noinst_LTLIBRARIES += libvlc_motion.la
+-- 
